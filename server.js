@@ -29,7 +29,7 @@ let incrementApiHitCount = (key) => {
       };
       connection.query('INSERT INTO `api_hits` SET ?', api_hit, function(error, results, fields) {
         if(error) throw error;
-        console.log('insert hit: ', results);
+        //console.log('insert hit: ', results);
       });
     }
   });
@@ -63,10 +63,10 @@ let incrementApiHitCount = (key) => {
   }));
 
 	var connection = mysql.createConnection({
-	  host     : 'localhost',
-	  user     : 'root', 
-	  password : 'root', 
-	  database : 'test' 
+	  host     : '54.218.75.98',
+	  user     : 'ocr_dev', 
+	  password : 'nZdHg2k4Qh', 
+	  database : 'ocr_dev' 
 	});
 	connection.connect(function(err) {
 	  if (err) throw err
