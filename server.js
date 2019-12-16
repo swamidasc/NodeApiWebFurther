@@ -6,23 +6,37 @@ let memCache = new mcache.Cache();
 
 //Api Hit count logic start
 let incrementApiHitCount = (key) => {
-  connection.query('SELECT * FROM `api_hits` WHERE `api` = ?', [key], function (error, results, fields) {
+ var todayDate = new Date().toISOString().slice(0,10);
+  connection.query('SELECT * FROM `api_hits` WHERE `api` = ? order by 1 desc limit 1',[key], function (error, results, fields) {
 
     if(error) throw error;
    // console.log(results);
     if(results.length>0) {
-      // update
+      let last_inserted_date=results[0].updated_at.toISOString().split('T')[0];
       const CURRENT_TIMESTAMP = mysql.raw('CURRENT_TIMESTAMP()');
-      connection.query('UPDATE `api_hits` SET `hits`=?, `updated_at`=? WHERE `api`=?', [
-        results[0].hits+1,
-        CURRENT_TIMESTAMP,
-        key
-      ], function(error, results, fields) {
-        if(error) throw error;
-       // console.log('updated hits: ', results);
-      });
+      if(last_inserted_date != todayDate){
+        const api_hit = {
+          api: key,
+          hits: 1
+        };
+        connection.query('INSERT INTO `api_hits` SET ?', api_hit, function(error, results, fields) {
+          if(error) throw error;
+          //console.log('insert hit: ', results);
+        });
+      }else{
+            connection.query('UPDATE `api_hits` SET `hits`=?, `updated_at`=? WHERE `api`=? and DATE(`updated_at`)=?' , [
+              results[0].hits+1,
+              CURRENT_TIMESTAMP,
+              key,
+              todayDate
+            ], function(error, results, fields) {
+              if(error) throw error;
+            // console.log('updated hits: ', results);
+            });
+      }
+
     } else {
-      // insert
+      // insert 
       const api_hit = {
         api: key,
         hits: 1
@@ -85,8 +99,8 @@ function main () {
       res.json(results);
     });
 });
-  
-  app.get('/emplist',cacheMiddleware(10), function (req, res) {
+
+app.get('/emplist',cacheMiddleware(10), function (req, res) {
   connection.query('select * from list', function (error, results, fields) {
     if (error) throw error;
     memCache.put(req.mCacheKey, results,1200000);
@@ -94,7 +108,24 @@ function main () {
     res.json(results);
   });
 });
+  
+app.get('/apilist/:key',cacheMiddleware(10), function (req, res) {
+  let apikey=req.params.key;
+  connection.query('select word from filter_words where siteid in (select siteid from keyinfo where api_key=?)',apikey, function (error, results, fields) {
+    if (error) throw error;
+    if(results.length>0) {
+      memCache.put(req.mCacheKey, results,1200000);
+      incrementApiHitCount(req.mCacheKey);
+      res.json(results);
+    }
+    else{
+      let emptyResponse='Invalid Key';
+      res.json(emptyResponse);
+    }
+  });
 
+  
+});
   app.listen(port, () => console.log(`Server is listening on port: ${port}`));
 
 }
